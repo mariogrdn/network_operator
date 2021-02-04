@@ -10,6 +10,7 @@ import (
 
 func main(){
 
+	changeTime := time.Now()
 	var state string = "remote"
 	fmt.Printf(remoteInstance())
 
@@ -29,19 +30,33 @@ func main(){
 		fmt.Printf("Quality: %d/100\nSignal: %d dB\n", quality, strenght)
 
 		if(quality <= 40 || strenght <= -60){
-			fmt.Printf("Switching to localInstance\n")
+						
 			if (state == "local"){
 				fmt.Printf("Already using localInstance\n")
 			}else{
+				fmt.Printf("Switching to localInstance\n")
+				currentTime := time.Now()
+				if(currentTime.Sub(changeTime) <= 300000000000){
+				fmt.Printf("The last switching was too recent\n")
+				continue
+				}
 				state = "local"
+				changeTime = time.Now()
 				fmt.Printf(localInstance())
 			}
 		}else{
-			fmt.Printf("Switching to remoteInstance\n")
+			
 			if(state == "remote"){
 				fmt.Printf("Already using remoteInstance\n")
 			}else{
+				fmt.Printf("Switching to remoteInstance\n")
+				currentTime := time.Now()
+				if(currentTime.Sub(changeTime) <= 300000000000){
+				fmt.Printf("The last switching was too recent\n")
+				continue
+				}
 				state = "remote"
+				changeTime = time.Now()
 				fmt.Printf(remoteInstance())
 			}
 		}
