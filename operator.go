@@ -11,6 +11,7 @@ import (
 func main(){
 
 	var state string = "remote"
+	fmt.Printf(remoteInstance())
 
 	for {
 		quality, err := strconv.Atoi(strings.TrimSuffix(getNetQuality(), "\n"))
@@ -33,15 +34,15 @@ func main(){
 				fmt.Printf("Already using localInstance\n")
 			}else{
 				state = "local"
-				localInstance()
+				fmt.Printf(localInstance())
 			}
 		}else{
 			fmt.Printf("Switching to remoteInstance\n")
 			if(state == "remote"){
-				fmt.Printf("Already using remotInstance\n")
+				fmt.Printf("Already using remoteInstance\n")
 			}else{
 				state = "remote"
-				remoteInstance()
+				fmt.Printf(remoteInstance())
 			}
 		}
 		time.Sleep(1000 * time.Millisecond)
@@ -68,9 +69,9 @@ func getSigStrenght() string {
 }
 
 func localInstance() string {
-	return "Local instance/n"
+	return "Local instance\n"
 }
 
 func remoteInstance() string {
-	return "Remote instance/n"
+	return "Remote instance\n"
 }
