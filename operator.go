@@ -10,10 +10,14 @@ import (
 	"time"
 )
 
-var hysteresis int64 = 90000000000
-var netCardName string = ""
+var hysteresis int64 = 90000000000 //time in nanoseconds
+var netCardName string = "" //network card name
 
-func main() {
+//*******************************************//
+// 					     //	
+//                                           //
+//*******************************************//
+func main() { 
 	
 	changeTime := time.Time{}
 	state := "remote"
