@@ -10,8 +10,11 @@ import (
 	"time"
 )
 
-func main() {
+var Hysteresis int64 = 90000000000
+var NetCardName string = ""
 
+func main() {
+	
 	changeTime := time.Time{}
 	state := "remote"
 	//fmt.Printf(remoteInstance())
@@ -38,7 +41,7 @@ func main() {
 				fmt.Printf("Switching to local insatnce\n")
 
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= 90000000000 {
+				if currentTime.Sub(changeTime) <= Hysteresis {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
@@ -59,7 +62,7 @@ func main() {
 			} else {
 				fmt.Printf("Switching to remote instance\n")
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= 90000000000 {
+				if currentTime.Sub(changeTime) <= Hysteresis {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
@@ -80,7 +83,14 @@ func main() {
 }
 
 func getNetQuality() string {
-	cmd := "iwconfig | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'"
+	var cmd string
+	
+	if (NetCardName == ""){
+		cmd = "iwconfig | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'"
+	}else{
+		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", NetCardName)
+	}
+	
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
@@ -89,7 +99,14 @@ func getNetQuality() string {
 }
 
 func getSigStrenght() string {
-	cmd := "iwconfig | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'"
+	var cmd string
+	
+	if (NetCardName == ""){
+		cmd = "iwconfig | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'"		
+	}else{
+		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", NetCardName)
+	}
+	
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
