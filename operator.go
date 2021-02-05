@@ -10,18 +10,28 @@ import (
 	"time"
 )
 
-var hysteresis int64 = 90000000000 //time in nanoseconds
-var netCardName string = "" //network card name
+var hysteresis int64 = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
-//*******************************************//
-// 					     //	
-//                                           //
-//*******************************************//
+				// Network card name. Could be retrieved by means of "iwconfig" Linux tool. 
+var netCardName string = "" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
+				// In case of multiple WiFi Network Cards, a name must be specified.
+
+
+//**********************************************//
+//					     	//
+// Infinite cycle. Once every second, checks 	//
+// the "netCardName" network card signal     	//
+// status. By means of that data it decides  	//
+// what service instance must be used.       	//
+// Instance can be switched only once every  	//
+// "hysteresis" nanoseconds.			//
+//                                           	//
+//**********************************************//
+
 func main() { 
 	
 	changeTime := time.Time{}
 	state := "remote"
-	//fmt.Printf(remoteInstance())
 
 	for {
 		quality, err := strconv.Atoi(strings.TrimSuffix(getNetQuality(), "\n"))
@@ -58,7 +68,6 @@ func main() {
 					state = "local"
 					changeTime = time.Now()
 				}
-				//fmt.Printf(localInstance())
 			}
 		} else {
 			if state == "remote" {
@@ -78,13 +87,19 @@ func main() {
 					state = "remote"
 					changeTime = time.Now()
 				}
-				//fmt.Printf(remoteInstance())
 			}
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}
 
 }
+
+//**********************************************//
+//						//
+// Retrieves the "Link Quality" value.		//
+// It returns either the data or an error.	//
+//						//
+//**********************************************//
 
 func getNetQuality() string {
 	var cmd string
@@ -102,6 +117,12 @@ func getNetQuality() string {
 	return string(out)
 }
 
+//**********************************************//
+//						//
+// Retrieves the "Signal Strenght" value.	//
+// It returns either the data or an error.	//
+//						//
+//**********************************************//
 func getSigStrenght() string {
 	var cmd string
 	
@@ -118,13 +139,14 @@ func getSigStrenght() string {
 	return string(out)
 }
 
-/*/func localInstance() string {
-	return "Local instance\n"
-}
-
-func remoteInstance() string {
-	return "Remote instance\n"
-}*/
+//**********************************************//
+//						//
+// Changes the current K8s service selector 	//
+// to the one passed by the "selector" 		//
+// parameter. It returns "Ok" if the request	//
+// has been successful, "Error" if it has not	//
+//						//
+//**********************************************//
 
 func selectorPatcher(selector string) string {
 	baseURL := "http://127.0.0.1:8001/api/v1/namespaces/default/services/listener-service"
