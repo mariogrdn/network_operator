@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var hysteresis int64 = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
+var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
 var netCardName string = "" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
