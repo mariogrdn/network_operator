@@ -12,7 +12,7 @@ import (
 
 var hysteresis int64 = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
-				// Network card name. Could be retrieved by means of "iwconfig" Linux tool. 
+				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
 var netCardName string = "" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
 				// In case of multiple WiFi Network Cards, a name must be specified.
 
