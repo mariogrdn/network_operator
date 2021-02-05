@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-var Hysteresis int64 = 90000000000
-var NetCardName string = ""
+var hysteresis int64 = 90000000000
+var netCardName string = ""
 
 func main() {
 	
@@ -41,7 +41,7 @@ func main() {
 				fmt.Printf("Switching to local insatnce\n")
 
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= Hysteresis {
+				if currentTime.Sub(changeTime) <= hysteresis {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
@@ -62,7 +62,7 @@ func main() {
 			} else {
 				fmt.Printf("Switching to remote instance\n")
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= Hysteresis {
+				if currentTime.Sub(changeTime) <= hysteresis {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
@@ -85,10 +85,10 @@ func main() {
 func getNetQuality() string {
 	var cmd string
 	
-	if (NetCardName == ""){
+	if (netCardName == ""){
 		cmd = "iwconfig | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'"
 	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", NetCardName)
+		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
 	}
 	
 	out, err := exec.Command("bash", "-c", cmd).Output()
@@ -101,10 +101,10 @@ func getNetQuality() string {
 func getSigStrenght() string {
 	var cmd string
 	
-	if (NetCardName == ""){
+	if (netCardName == ""){
 		cmd = "iwconfig | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'"		
 	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", NetCardName)
+		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", netCardName)
 	}
 	
 	out, err := exec.Command("bash", "-c", cmd).Output()
