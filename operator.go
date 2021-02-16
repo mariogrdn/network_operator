@@ -13,7 +13,7 @@ import (
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-var netCardName string = "" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
+var netCardName string = "wlxd0c0bf81c3fd" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
 				// In case of multiple WiFi Network Cards, a name must be specified.
 
 
@@ -149,7 +149,7 @@ func getSigStrenght() string {
 //**********************************************//
 
 func selectorPatcher(selector string) string {
-	baseURL := "http://127.0.0.1:8001/api/v1/namespaces/default/services/listener-service"
+	baseURL := "http://127.0.0.1:8001/api/v1/namespaces/yolo-demo/services/listener-service"
 	if selector == "local" || selector == "remote" {
 		ymlString := []byte("{\"spec\":{\"selector\":{\"app\":\"listener\",\"version\":\"" + selector + "\"}}}")
 		fmt.Println(string(ymlString))
