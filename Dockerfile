@@ -1,11 +1,13 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM golang:alpine AS builder
+FROM partlab/ubuntu-golang AS builder
 # Install git.
 # Git is required for fetching the dependencies.
-RUN apk update && apk add --no-cache git
+RUN apt-get update && apt-get install -y git
+RUN apt-get install -y wireless-tools
 COPY operator.go ./operator.go
+ENV GO111MODULE=off
 # Fetch dependencies.
 # Using go get.
 RUN go get -d -v

@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	//"crypto/tls"
 )
 
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-var netCardName string = "wlxd0c0bf81c3fd" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
+var netCardName string = "wlp2s0" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
 				// In case of multiple WiFi Network Cards, a name must be specified.
 
 
@@ -36,23 +37,63 @@ func main() {
 	for {
 		quality, err := strconv.Atoi(strings.TrimSuffix(getNetQuality(), "\n"))
 		if err != nil {
-			fmt.Printf("Error during parsing. Check your internet connection\n")
+			fmt.Printf("Your internet connection may be down. Switching to local\n")
+			if state == "local"{
+				fmt.Println("Already using local instance\n")
+			}else{
+				currentTime := time.Now()
+				if currentTime.Sub(changeTime) <= hysteresis {
+					fmt.Printf("The last switching was too recent\n")
+					continue
+				}
+
+				if selectorPatcher("local") == "Error" {
+					fmt.Printf("Error while switching instance")
+					continue
+				} else {
+					fmt.Printf("Switching executed successfully")
+					state = "local"
+					changeTime = time.Now()
+				}
+			}	
+							
 			time.Sleep(2000 * time.Millisecond)
 			continue
 		}
+		
 		strenght, err := strconv.Atoi(strings.TrimSuffix(getSigStrenght(), "\n"))
 		if err != nil {
-			fmt.Printf("Error during parsing. Check your internet connection\n")
+			fmt.Printf("Your internet connection may be down. Switching to local\n")
+			if state == "local"{
+				fmt.Println("Already using local instance\n")
+			}else{
+				currentTime := time.Now()
+				if currentTime.Sub(changeTime) <= hysteresis {
+					fmt.Printf("The last switching was too recent\n")
+					continue
+				}
+
+				if selectorPatcher("local") == "Error" {
+					fmt.Printf("Error while switching instance")
+					continue
+				} else {
+					fmt.Printf("Switching executed successfully")
+					state = "local"
+					changeTime = time.Now()
+				}
+			}
+
 			time.Sleep(2000 * time.Millisecond)
 			continue
 		}
+		
 		fmt.Printf("Quality: %d/100\nSignal: %d dB\n", quality, strenght)
 
 		if quality <= 40 || strenght <= -60 {
 			if state == "local" {
 				fmt.Printf("Already using local instance\n")
 			} else {
-				fmt.Printf("Switching to local insatnce\n")
+				fmt.Printf("Switching to local instance\n")
 
 				currentTime := time.Now()
 				if currentTime.Sub(changeTime) <= hysteresis {
@@ -149,20 +190,27 @@ func getSigStrenght() string {
 //**********************************************//
 
 func selectorPatcher(selector string) string {
-	baseURL := "http://127.0.0.1:8001/api/v1/namespaces/yolo-demo/services/listener-service"
+	baseURL := "http://localhost:8001/api/v1/namespaces/yolo/services/yolo-service"
+	//http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	if selector == "local" || selector == "remote" {
-		ymlString := []byte("{\"spec\":{\"selector\":{\"app\":\"listener\",\"version\":\"" + selector + "\"}}}")
+		ymlString := []byte("{\"spec\":{\"selector\":{\"name\":\"yolo-tiny-" + selector + "\"}}}")
 		fmt.Println(string(ymlString))
 		req, _ := http.NewRequest(http.MethodPatch, baseURL, bytes.NewBuffer(ymlString))
 		req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
-		_, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req)
+		fmt.Println(resp)
 		if err != nil {
 			fmt.Println("Error while doing the HTTP Request")
 			fmt.Println(err)
 			return "Error"
 		}
+		
+		fmt.Println(err)
+		fmt.Println("Switch executed successfully\n")
+		return "Ok"
 	}
+	
+	return "Error"
 
-	fmt.Println("Switch executed successfully")
-	return "Ok"
+	
 }
