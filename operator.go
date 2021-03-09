@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,7 @@ import (
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-var netCardName string = "wlp2s0" 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
+var netCardName string = os.Getenv("NET_CARD") 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
 				// In case of multiple WiFi Network Cards, a name must be specified.
 
 

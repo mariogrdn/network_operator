@@ -21,6 +21,8 @@ spec:
       - name: app
         image: mariogrdn/go-operator
         env:
+          - name: NET_CARD
+            value: network_card_name
           - name: res_namespace
             valueFrom:
               fieldRef:
