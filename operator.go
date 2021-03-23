@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/json"
+	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/clientcmd"
 	"bytes"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	//"crypto/tls"
 )
 
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
@@ -17,6 +20,15 @@ var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m
 				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
 var netCardName string = os.Getenv("NET_CARD") 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
 				// In case of multiple WiFi Network Cards, a name must be specified.
+
+var context = ""
+
+
+type patchStringValue struct {
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
 
 
 //**********************************************//
@@ -34,6 +46,21 @@ func main() {
 	
 	changeTime := time.Time{}
 	state := "remote"
+	
+	//  Get the local kube config.
+	fmt.Printf("Connecting to Kubernetes Context %v\n", context)
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{CurrentContext: context}).ClientConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	for {
 		quality, err := strconv.Atoi(strings.TrimSuffix(getNetQuality(), "\n"))
@@ -43,12 +70,8 @@ func main() {
 				fmt.Println("Already using local instance\n")
 			}else{
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
-					continue
-				}
 
-				if selectorPatcher("local") == "Error" {
+				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -69,12 +92,8 @@ func main() {
 				fmt.Println("Already using local instance\n")
 			}else{
 				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
-					continue
-				}
 
-				if selectorPatcher("local") == "Error" {
+				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -102,7 +121,7 @@ func main() {
 					continue
 				}
 
-				if selectorPatcher("local") == "Error" {
+				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -121,7 +140,7 @@ func main() {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
-				if selectorPatcher("remote") == "Error" {
+				if selectorPatcher(clientset,"yolo-tiny-remote") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -190,7 +209,7 @@ func getSigStrenght() string {
 //						//
 //**********************************************//
 
-func selectorPatcher(selector string) string {
+/* func selectorPatcher(selector string) string {
 	baseURL := "http://localhost:8001/api/v1/namespaces/yolo/services/yolo-service"
 	//http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	if selector == "local" || selector == "remote" {
@@ -212,6 +231,25 @@ func selectorPatcher(selector string) string {
 	}
 	
 	return "Error"
+} */
 
-	
+func selectorPatcher(clientSet *kubernetes.Clientset, selector string) string {
+	payload := []patchStringValue{{
+		Op:    "replace",
+		Path:  "/spec/selector",
+		Value: "name:" + selector,
+	}}
+	payloadBytes, _ := json.Marshal(payload)
+	_, err := clientSet.
+		CoreV1().
+		Services("yolo").
+		Patch("yolo-service", types.JSONPatchType, payloadBytes)
+		
+	if err != nil{
+		fmt.Println("Error while switching")
+		return "Error"
+	}else{
+		fmt.Println("Switch executed correctly")
+		return "Ok"
+	}
 }
