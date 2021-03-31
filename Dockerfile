@@ -4,7 +4,7 @@
 FROM golang:alpine AS builder
 # Install git.
 # Git is required for fetching the dependencies.
-RUN apk update && apk add --no-cache git wireless-tools
+RUN apk update && apk add --no-cache git
 WORKDIR $GOPATH/network_operator/operator/
 COPY . .
 # Fetch dependencies.
