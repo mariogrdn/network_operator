@@ -14,10 +14,8 @@ import (
 
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
-				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-var netCardName string = os.Getenv("NET_CARD") 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
-				// In case of multiple WiFi Network Cards, a name must be specified.
-
+				
+var netCardName string = os.Getenv("NET_CARD") // WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
 
 //**********************************************//
 //					     	//
@@ -31,7 +29,7 @@ var netCardName string = os.Getenv("NET_CARD") 	// An empty "netCardName" can be
 //**********************************************//
 
 func main() { 
-	
+
 	changeTime := time.Time{}
 	state := "remote"
 
@@ -42,11 +40,6 @@ func main() {
 			if state == "local"{
 				fmt.Println("Already using local instance\n")
 			}else{
-				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
-					continue
-				}
 
 				if selectorPatcher("local") == "Error" {
 					fmt.Printf("Error while switching instance")
@@ -68,11 +61,6 @@ func main() {
 			if state == "local"{
 				fmt.Println("Already using local instance\n")
 			}else{
-				currentTime := time.Now()
-				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
-					continue
-				}
 
 				if selectorPatcher("local") == "Error" {
 					fmt.Printf("Error while switching instance")
@@ -146,14 +134,11 @@ func main() {
 func getNetQuality() string {
 	var cmd string
 	
-	if (netCardName == ""){
-		cmd = "iwconfig | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'"
-	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
-	}
-	
-	out, err := exec.Command("bash", "-c", cmd).Output()
+	cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
+		
+	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
+		fmt.Println(err)
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
 	return string(out)
@@ -168,14 +153,11 @@ func getNetQuality() string {
 func getSigStrenght() string {
 	var cmd string
 	
-	if (netCardName == ""){
-		cmd = "iwconfig | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'"		
-	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", netCardName)
-	}
+	cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", netCardName)
 	
-	out, err := exec.Command("bash", "-c", cmd).Output()
+	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
+		fmt.Println(err)
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
 	return string(out)

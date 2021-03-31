@@ -1,15 +1,23 @@
 ############################
 # STEP 1 build executable binary
 ############################
-FROM partlab/ubuntu-golang AS builder
+FROM golang:alpine AS builder
 # Install git.
 # Git is required for fetching the dependencies.
-RUN apt-get update && apt-get install -y git
-RUN apt-get install -y wireless-tools
-COPY operator.go ./operator.go
-ENV GO111MODULE=off
+RUN apk update && apk add --no-cache git wireless-tools
+WORKDIR $GOPATH/network_operator/operator/
+COPY . .
 # Fetch dependencies.
 # Using go get.
 RUN go get -d -v
 # Build the binary.
-ENTRYPOINT [ "go", "run", "./operator.go" ]
+RUN go build -o /go/bin/operator
+############################
+# STEP 2 build a small image
+############################
+FROM alpine 
+# Copy our static executable.
+COPY --from=builder /go/bin/operator /go/bin/operator
+RUN apk update && apk add --no-cache wireless-tools
+# Run the server binary.
+ENTRYPOINT ["/go/bin/operator"]
