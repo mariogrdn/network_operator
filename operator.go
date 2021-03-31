@@ -6,22 +6,22 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/clientcmd"
-	"bytes"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"fmt"
 	"os/exec"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"context"
 )
 
 var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
-				// WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-var netCardName string = os.Getenv("NET_CARD") 	// An empty "netCardName" can be used in case the system has only one WiFi Network Card.
-				// In case of multiple WiFi Network Cards, a name must be specified.
 
-var context = ""
+var netCardName string = os.Getenv("NET_CARD") // WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
+
+
 
 
 type patchStringValue struct {
@@ -46,7 +46,7 @@ func main() {
 	
 	changeTime := time.Time{}
 	state := "remote"
-	
+	var context = ""
 	//  Get the local kube config.
 	fmt.Printf("Connecting to Kubernetes Context %v\n", context)
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -69,7 +69,6 @@ func main() {
 			if state == "local"{
 				fmt.Println("Already using local instance\n")
 			}else{
-				currentTime := time.Now()
 
 				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
 					fmt.Printf("Error while switching instance")
@@ -91,7 +90,6 @@ func main() {
 			if state == "local"{
 				fmt.Println("Already using local instance\n")
 			}else{
-				currentTime := time.Now()
 
 				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
 					fmt.Printf("Error while switching instance")
@@ -164,14 +162,11 @@ func main() {
 
 func getNetQuality() string {
 	var cmd string
+
+	cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
+
 	
-	if (netCardName == ""){
-		cmd = "iwconfig | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'"
-	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
-	}
-	
-	out, err := exec.Command("bash", "-c", cmd).Output()
+	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
@@ -186,14 +181,10 @@ func getNetQuality() string {
 //**********************************************//
 func getSigStrenght() string {
 	var cmd string
+
+	cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", netCardName)
 	
-	if (netCardName == ""){
-		cmd = "iwconfig | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'"		
-	}else{
-		cmd = fmt.Sprintf("iwconfig %s | awk '{if ($3==\"Signal\"){split($4,A, \" \");print A[1]}}' | sed 's/level=//g' | grep -x -E '\\-[0-9]+'", netCardName)
-	}
-	
-	out, err := exec.Command("bash", "-c", cmd).Output()
+	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
 		return fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
@@ -209,44 +200,22 @@ func getSigStrenght() string {
 //						//
 //**********************************************//
 
-/* func selectorPatcher(selector string) string {
-	baseURL := "http://localhost:8001/api/v1/namespaces/yolo/services/yolo-service"
-	//http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	if selector == "local" || selector == "remote" {
-		ymlString := []byte("{\"spec\":{\"selector\":{\"name\":\"yolo-tiny-" + selector + "\"}}}")
-		fmt.Println(string(ymlString))
-		req, _ := http.NewRequest(http.MethodPatch, baseURL, bytes.NewBuffer(ymlString))
-		req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
-		resp, err := http.DefaultClient.Do(req)
-		fmt.Println(resp)
-		if err != nil {
-			fmt.Println("Error while doing the HTTP Request")
-			fmt.Println(err)
-			return "Error"
-		}
-		
-		fmt.Println(err)
-		fmt.Println("Switch executed successfully\n")
-		return "Ok"
-	}
-	
-	return "Error"
-} */
 
 func selectorPatcher(clientSet *kubernetes.Clientset, selector string) string {
+	val := fmt.Sprintf("{name:%s}", selector)
 	payload := []patchStringValue{{
 		Op:    "replace",
 		Path:  "/spec/selector",
-		Value: "name:" + selector,
-	}}
+		Value: val }}
 	payloadBytes, _ := json.Marshal(payload)
 	_, err := clientSet.
 		CoreV1().
 		Services("yolo").
-		Patch("yolo-service", types.JSONPatchType, payloadBytes)
+		Patch(context.TODO(), "yolo-service", types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
 		
 	if err != nil{
 		fmt.Println("Error while switching")
+		fmt.Println(err)
 		return "Error"
 	}else{
 		fmt.Println("Switch executed correctly")
