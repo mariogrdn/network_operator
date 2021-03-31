@@ -4,10 +4,8 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	//"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	//"k8s.io/apimachinery/pkg/api/errors"
 	"fmt"
 	"os/exec"
 	"os"
@@ -17,7 +15,7 @@ import (
 	"context"
 )
 
-var hysteresis time.Duration = 30000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
+var hysteresis time.Duration = 3000000000 // Time in nanoseconds. Default is 30s (Time_in_ns = time_in_min * 6000000000).
 
 
 var netCardName string = os.Getenv("NET_CARD") // WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
@@ -153,7 +151,6 @@ func getNetQuality() string {
 	var cmd string
 
 	cmd = fmt.Sprintf("iwconfig %s | awk '{if ($1==\"Link\"){split($2,A,\"/\");print A[1]}}' | sed 's/Quality=//g' | grep -x -E '[0-9]+'", netCardName)
-
 	
 	out, err := exec.Command("sh", "-c", cmd).Output()
 	if err != nil {
