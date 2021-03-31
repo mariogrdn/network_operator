@@ -1,12 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/tools/clientcmd"
+	//"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	//"k8s.io/apimachinery/pkg/api/errors"
 	"fmt"
 	"os/exec"
 	"os"
@@ -16,20 +17,10 @@ import (
 	"context"
 )
 
-var hysteresis time.Duration = 90000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
+var hysteresis time.Duration = 30000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 
 var netCardName string = os.Getenv("NET_CARD") // WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
-
-
-
-
-type patchStringValue struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value string `json:"value"`
-}
-
 
 //**********************************************//
 //					     	//
@@ -49,9 +40,7 @@ func main() {
 	var context = ""
 	//  Get the local kube config.
 	fmt.Printf("Connecting to Kubernetes Context %v\n", context)
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{CurrentContext: context}).ClientConfig()
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -70,7 +59,7 @@ func main() {
 				fmt.Println("Already using local instance\n")
 			}else{
 
-				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
+				if selectorPatcher(clientset,"local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -91,7 +80,7 @@ func main() {
 				fmt.Println("Already using local instance\n")
 			}else{
 
-				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
+				if selectorPatcher(clientset,"local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -119,7 +108,7 @@ func main() {
 					continue
 				}
 
-				if selectorPatcher(clientset,"yolo-tiny-local") == "Error" {
+				if selectorPatcher(clientset,"local") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -138,7 +127,7 @@ func main() {
 					fmt.Printf("The last switching was too recent\n")
 					continue
 				}
-				if selectorPatcher(clientset,"yolo-tiny-remote") == "Error" {
+				if selectorPatcher(clientset,"remote") == "Error" {
 					fmt.Printf("Error while switching instance")
 					continue
 				} else {
@@ -201,24 +190,23 @@ func getSigStrenght() string {
 //**********************************************//
 
 
-func selectorPatcher(clientSet *kubernetes.Clientset, selector string) string {
-	val := fmt.Sprintf("{name:%s}", selector)
-	payload := []patchStringValue{{
-		Op:    "replace",
-		Path:  "/spec/selector",
-		Value: val }}
-	payloadBytes, _ := json.Marshal(payload)
+func 	selectorPatcher(clientSet *kubernetes.Clientset, selector string) string {
+
+	payloadBytes := []byte("{\"spec\":{\"selector\":{\"name\":\"yolo-tiny-" + selector + "\"}}}")
 	_, err := clientSet.
 		CoreV1().
 		Services("yolo").
-		Patch(context.TODO(), "yolo-service", types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
+		Patch(context.TODO(), "yolo-service", types.StrategicMergePatchType, payloadBytes, metav1.PatchOptions{})
 		
 	if err != nil{
 		fmt.Println("Error while switching")
 		fmt.Println(err)
 		return "Error"
 	}else{
+		fmt.Println(err)
 		fmt.Println("Switch executed correctly")
 		return "Ok"
 	}
 }
+
+
