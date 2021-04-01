@@ -1,19 +1,24 @@
 package main
 
 import (
-
+	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/clientcmd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/homedir"
 	"fmt"
 	"os/exec"
 	"os"
-	"bytes"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 	"context"
+	"flag"
+	"path/filepath"
 )
 
-var hysteresis time.Duration = 30000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
+var hysteresis time.Duration = 20000000000 // Time in nanoseconds. Default is 1m30s (Time_in_ns = time_in_min * 6000000000).
 
 
 var netCardName string = os.Getenv("NET_CARD") // WiFi Network Card name. Could be retrieved by means of "iwconfig" Linux tool. 
@@ -33,10 +38,18 @@ func main() {
 	
 	changeTime := time.Time{}
 	state := "remote"
-	var context = ""
 	//  Get the local kube config.
-	fmt.Printf("Connecting to Kubernetes Context %v\n", context)
-	config, err := rest.InClusterConfig()
+	fmt.Println("Connecting to Kubernetes Context")
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	flag.Parse()
+
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -50,16 +63,16 @@ func main() {
 	for {
 		quality, err := strconv.Atoi(strings.TrimSuffix(getNetQuality(), "\n"))
 		if err != nil {
-			fmt.Printf("Your internet connection may be down. Switching to local\n")
+			fmt.Println("Your internet connection may be down. Switching to local")
 			if state == "local"{
-				fmt.Println("Already using local instance\n")
+				fmt.Println("Already using local instance")
 			}else{
 
 				if selectorPatcher(clientset,"local") == "Error" {
-					fmt.Printf("Error while switching instance")
+					fmt.Println("Error while switching instance")
 					continue
 				} else {
-					fmt.Printf("Switching executed successfully")
+					fmt.Println("Switching executed successfully")
 					state = "local"
 					changeTime = time.Now()
 				}
@@ -71,16 +84,16 @@ func main() {
 		
 		strenght, err := strconv.Atoi(strings.TrimSuffix(getSigStrenght(), "\n"))
 		if err != nil {
-			fmt.Printf("Your internet connection may be down. Switching to local\n")
+			fmt.Println("Your internet connection may be down. Switching to local")
 			if state == "local"{
-				fmt.Println("Already using local instance\n")
+				fmt.Println("Already using local instance")
 			}else{
 
 				if selectorPatcher(clientset,"local") == "Error" {
-					fmt.Printf("Error while switching instance")
+					fmt.Println("Error while switching instance")
 					continue
 				} else {
-					fmt.Printf("Switching executed successfully")
+					fmt.Println("Switching executed successfully")
 					state = "local"
 					changeTime = time.Now()
 				}
@@ -94,40 +107,40 @@ func main() {
 
 		if quality <= 40 || strenght <= -60 {
 			if state == "local" {
-				fmt.Printf("Already using local instance\n")
+				fmt.Println("Already using local instance")
 			} else {
-				fmt.Printf("Switching to local instance\n")
+				fmt.Println("Switching to local instance")
 
 				currentTime := time.Now()
 				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
+					fmt.Println("The last switching was too recent")
 					continue
 				}
 
 				if selectorPatcher(clientset,"local") == "Error" {
-					fmt.Printf("Error while switching instance")
+					fmt.Println("Error while switching instance")
 					continue
 				} else {
-					fmt.Printf("Switching executed successfully")
+					fmt.Println("Switching executed successfully")
 					state = "local"
 					changeTime = time.Now()
 				}
 			}
 		} else {
 			if state == "remote" {
-				fmt.Printf("Already using remote instance\n")
+				fmt.Println("Already using remote instance")
 			} else {
-				fmt.Printf("Switching to remote instance\n")
+				fmt.Println("Switching to remote instance")
 				currentTime := time.Now()
 				if currentTime.Sub(changeTime) <= hysteresis {
-					fmt.Printf("The last switching was too recent\n")
+					fmt.Println("The last switching was too recent")
 					continue
 				}
 				if selectorPatcher(clientset,"remote") == "Error" {
-					fmt.Printf("Error while switching instance")
+					fmt.Println("Error while switching instance")
 					continue
 				} else {
-					fmt.Printf("Switching executed successfully")
+					fmt.Println("Switching executed successfully")
 					state = "remote"
 					changeTime = time.Now()
 				}
@@ -186,30 +199,22 @@ func getSigStrenght() string {
 //**********************************************//
 
 
-func selectorPatcher(selector string) string {
-	baseURL := "http://localhost:8001/api/v1/namespaces/yolo/services/yolo-service"
-	//http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	if selector == "local" || selector == "remote" {
-		ymlString := []byte("{\"spec\":{\"selector\":{\"name\":\"yolo-tiny-" + selector + "\"}}}")
-		fmt.Println(string(ymlString))
-		req, _ := http.NewRequest(http.MethodPatch, baseURL, bytes.NewBuffer(ymlString))
-		req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
-		resp, err := http.DefaultClient.Do(req)
-		fmt.Println(resp)
-		if err != nil {
-			fmt.Println("Error while doing the HTTP Request")
-			fmt.Println(err)
-			return "Error"
-		}
+func selectorPatcher(clientSet *kubernetes.Clientset, selector string) string {
 
+	payloadBytes := []byte("{\"spec\":{\"selector\":{\"name\":\"yolo-tiny-" + selector + "\"}}}")
+	_, err := clientSet.
+		CoreV1().
+		Services("yolo").
+		Patch(context.TODO(), "yolo-service", types.StrategicMergePatchType, payloadBytes, metav1.PatchOptions{})
+		
+	if err != nil{
+		fmt.Println("Error while switching")
 		fmt.Println(err)
-		fmt.Println("Switch executed successfully\n")
+		return "Error"
+	}else{
+		fmt.Println("Switch executed correctly")
 		return "Ok"
 	}
-
-	return "Error"
-
-
 }
 
 
