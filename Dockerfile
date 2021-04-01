@@ -5,6 +5,7 @@ FROM golang:alpine AS builder
 # Install git.
 # Git is required for fetching the dependencies.
 RUN apk update && apk add --no-cache git
+RUN go get k8s.io/client-go@latest
 WORKDIR $GOPATH/network_operator/operator/
 COPY . .
 # Fetch dependencies.
